@@ -57,8 +57,8 @@ async def _work(client: HttpxAsyncClient, repos: list[dict[str, Any]], repo_info
                 owner=repo['owner']['login'],
                 commit_authors=set(
                     CommitAuthor(
-                        name=commit['commit']['committer']['name'],
-                        email_address=commit['commit']['committer']['email']
+                        name=commit['commit']['author']['name'],
+                        email_address=commit['commit']['author']['email']
                     )
                     for commit in commits
                 )
@@ -67,9 +67,9 @@ async def _work(client: HttpxAsyncClient, repos: list[dict[str, Any]], repo_info
 
 
 async def obtain_github_authors(
-        client: HttpxAsyncClient,
-        username: str,
-        num_max_concurrent: int = 5
+    client: HttpxAsyncClient,
+    username: str,
+    num_max_concurrent: int = 5
 ) -> set[CommitAuthor]:
     """
     Obtain information about authors from the commit history of a Github user's repositories.

@@ -51,7 +51,11 @@ async def main():
             '\n'.join(
                 sorted(
                     str(commit_author)
-                    for commit_author in await obtain_github_authors(client=client, username=args.repo_user)
+                    for commit_author in await obtain_github_authors(
+                        client=client,
+                        username=args.repo_user,
+                        num_max_concurrent=args.num_max_concurrent
+                    )
                 )
             )
         )
