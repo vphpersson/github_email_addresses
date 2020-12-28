@@ -41,7 +41,7 @@ async def _work(client: HttpxAsyncClient, repos: list[dict[str, Any]], repo_info
         for page_number in count(start=1):
             response = await client.get(
                 url=f'/repos/{repo["full_name"]}/commits',
-                params={**{'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number}, **extra_request_parameters}
+                params={'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number} | extra_request_parameters
             )
             if response.status_code == 409:
                 # The repository has no commits.
