@@ -1,6 +1,5 @@
 from asyncio import gather as asyncio_gather
 from dataclasses import dataclass
-from math import ceil
 from itertools import count
 from typing import Any
 
@@ -33,11 +32,16 @@ async def _work(client: HttpxAsyncClient, repos: list[dict[str, Any]], repo_info
         except IndexError:
             break
 
+        extra_request_parameters: dict[str, Any] = {}
+
+        if repo['fork']:
+            extra_request_parameters['since'] = repo['created_at']
+
         commits = []
         for page_number in count(start=1):
             response = await client.get(
                 url=f'/repos/{repo["full_name"]}/commits',
-                params={'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number}
+                params={**{'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number}, **extra_request_parameters}
             )
             if response.status_code == 409:
                 # The repository has no commits.
@@ -81,25 +85,23 @@ async def obtain_github_authors(
     """
 
     # Obtain the number of repositories that the user has, for paging reasons.
-    num_repositories_response = await client.get(url='/search/repositories', params={'q': f'user:{username}'})
-    num_repositories_response.raise_for_status()
-    num_repositories: int = num_repositories_response.json()['total_count']
+    # num_repositories_response = await client.get(url='/search/repositories', params={'q': f'user:{username}'})
+    # num_repositories_response.raise_for_status()
+    # num_repositories: int = num_repositories_response.json()['total_count']
 
-    repository_entries: list[dict[str, any]] = [
-        repository
-        for page_response in (
-            (await asyncio_gather(*[
-                client.get(
-                    url=f'/users/{username}/repos',
-                    params={'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number}
-                )
-                for page_number in range(1, ceil(num_repositories / MAX_NUM_RESULTS_PER_PAGE) + 1)
-            ]))
+    repository_entries: list[dict[str, Any]] = []
+    for page_number in count(start=1):
+        response = await client.get(
+            url=f'/users/{username}/repos',
+            params={'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number}
         )
-        if page_response.raise_for_status() is None
-        for repository in page_response.json()
-        if not repository['fork']
-    ]
+        response.raise_for_status()
+
+        response_repositories_entries = response.json()
+        repository_entries.extend(response_repositories_entries)
+
+        if not response_repositories_entries or len(response_repositories_entries) < MAX_NUM_RESULTS_PER_PAGE:
+            break
 
     num_repository_entries = len(repository_entries)
     repo_info_list: list[RepositoryInfo] = []
