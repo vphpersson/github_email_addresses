@@ -84,11 +84,6 @@ async def obtain_github_authors(
     :return:
     """
 
-    # Obtain the number of repositories that the user has, for paging reasons.
-    # num_repositories_response = await client.get(url='/search/repositories', params={'q': f'user:{username}'})
-    # num_repositories_response.raise_for_status()
-    # num_repositories: int = num_repositories_response.json()['total_count']
-
     repository_entries: list[dict[str, Any]] = []
     for page_number in count(start=1):
         response = await client.get(
