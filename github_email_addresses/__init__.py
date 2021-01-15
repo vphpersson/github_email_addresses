@@ -2,9 +2,11 @@ from asyncio import gather as asyncio_gather
 from dataclasses import dataclass
 from itertools import count
 from typing import Any
+from http import HTTPStatus
 
-from httpx import AsyncClient as HttpxAsyncClient
+from httpx import AsyncClient as HttpxAsyncClient, Response
 
+# The maximum number of results per page for API calls; set by Github.
 MAX_NUM_RESULTS_PER_PAGE = 100
 
 
@@ -24,47 +26,67 @@ class RepositoryInfo:
     commit_authors: set[CommitAuthor]
 
 
-async def _work(client: HttpxAsyncClient, repos: list[dict[str, Any]], repo_info_list: list[RepositoryInfo]):
+async def _collect_repository_information(
+    client: HttpxAsyncClient,
+    repository_entries: list[dict[str, Any]],
+    repository_information_list: list[RepositoryInfo]
+) -> None:
+    """
+    Collect information about a Github user's repositories.
+
+    The information collected includes the repository's name, its owner, and its commit authors.
+
+    The function is intended to be run concurrently. Repository entries are read from the input list until it is empty.
+    The repository information is collected in the other list. Both lists are shared, concurrently.
+
+    :param client: An HTTP client with which to perform requests towards Github's REST API.
+    :param repository_entries: A list of repository entries of a user, as returned by Github's API.
+    :param repository_information_list: A list onto which information about a repository is appended.
+    :return: None
+    """
 
     while True:
         try:
-            repo = repos.pop()
+            repository_entry: dict[str, Any] = repository_entries.pop()
         except IndexError:
             break
 
         extra_request_parameters: dict[str, Any] = {}
 
-        if repo['fork']:
-            extra_request_parameters['since'] = repo['created_at']
+        # If the repository is forked, collect only the commits that were made after the forked repository was
+        # was created.
+        if repository_entry['fork']:
+            extra_request_parameters['since'] = repository_entry['created_at']
 
-        commits = []
+        commit_entries: list[dict[str, Any]] = []
         for page_number in count(start=1):
-            response = await client.get(
-                url=f'/repos/{repo["full_name"]}/commits',
+            commit_entries_response: Response = await client.get(
+                url=f'/repos/{repository_entry["full_name"]}/commits',
                 params={'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number} | extra_request_parameters
             )
-            if response.status_code == 409:
-                # The repository has no commits.
+
+            # The repository has no commits.
+            if commit_entries_response.status_code == HTTPStatus.CONFLICT:
                 break
             else:
-                response.raise_for_status()
+                commit_entries_response.raise_for_status()
 
-            response_commits = response.json()
-            commits.extend(response_commits)
+            response_commit_entries: list[dict[str, Any]] = commit_entries_response.json()
+            commit_entries.extend(response_commit_entries)
 
-            if not response_commits or len(response_commits) < MAX_NUM_RESULTS_PER_PAGE:
+            if not response_commit_entries or len(response_commit_entries) < MAX_NUM_RESULTS_PER_PAGE:
                 break
 
-        repo_info_list.append(
+        repository_information_list.append(
             RepositoryInfo(
-                name=repo['name'],
-                owner=repo['owner']['login'],
+                name=repository_entry['name'],
+                owner=repository_entry['owner']['login'],
                 commit_authors=set(
                     CommitAuthor(
                         name=commit['commit']['author']['name'],
                         email_address=commit['commit']['author']['email']
                     )
-                    for commit in commits
+                    for commit in commit_entries
                 )
             )
         )
@@ -81,31 +103,31 @@ async def obtain_github_authors(
     :param client: An HTTP client with which to request information from Github's API.
     :param username: The username of the Github user whose repositories to scan.
     :param num_max_concurrent: The maximum number of concurrent HTTP requests.
-    :return:
+    :return: A set of the commit authors in a Github user's repositories.
     """
 
     repository_entries: list[dict[str, Any]] = []
     for page_number in count(start=1):
-        response = await client.get(
+        repository_entries_response: Response = await client.get(
             url=f'/users/{username}/repos',
             params={'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number}
         )
-        response.raise_for_status()
+        repository_entries_response.raise_for_status()
 
-        response_repositories_entries = response.json()
+        response_repositories_entries = repository_entries_response.json()
         repository_entries.extend(response_repositories_entries)
 
         if not response_repositories_entries or len(response_repositories_entries) < MAX_NUM_RESULTS_PER_PAGE:
             break
 
     num_repository_entries = len(repository_entries)
-    repo_info_list: list[RepositoryInfo] = []
+    repository_information_list: list[RepositoryInfo] = []
     await asyncio_gather(
         *[
-            _work(
+            _collect_repository_information(
                 client=client,
-                repos=repository_entries,
-                repo_info_list=repo_info_list
+                repository_entries=repository_entries,
+                repository_information_list=repository_information_list
             )
             for _ in range(min(num_repository_entries, num_max_concurrent))
         ]
@@ -113,7 +135,6 @@ async def obtain_github_authors(
 
     return {
         author
-        for repo_info in repo_info_list
+        for repo_info in repository_information_list
         for author in repo_info.commit_authors
-        if author.email_address != 'noreply@github.com'
     }
