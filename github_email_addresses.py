@@ -1,19 +1,31 @@
 #!/usr/bin/env python3
 
-from argparse import ArgumentParser
+from __future__ import annotations
 from asyncio import run as asyncio_run
+from typing import Type
 
 from httpx import AsyncClient
+from pyutils.argparse.typed_argument_parser import TypedArgumentParser
 
 from github_email_addresses import obtain_github_authors
 
 
-class GithubEmailAddressesArgumentParser(ArgumentParser):
+class GithubEmailAddressesArgumentParser(TypedArgumentParser):
+
+    class Namespace:
+        auth_username: str
+        auth_access_token: str
+        repo_user: str
+        num_max_concurrent: int
+
     def __init__(self, *args, **kwargs):
         super().__init__(
             *args,
             description='List the authors that appear in the commit history of a user\'s repositories.',
-            epilog='The information is obtained by making requests with the GitHub REST API. One must authenticate using a personal access token to avoid traffic limititations.',
+            epilog=(
+                'The information is obtained by making requests with the GitHub REST API. '
+                'One must authenticate using a personal access token to avoid traffic limititations.'
+            ),
             **kwargs
         )
 
@@ -42,7 +54,7 @@ class GithubEmailAddressesArgumentParser(ArgumentParser):
 
 async def main():
 
-    args = GithubEmailAddressesArgumentParser().parse_args()
+    args: Type[GithubEmailAddressesArgumentParser.Namespace] = GithubEmailAddressesArgumentParser().parse_args()
 
     client_options = dict(
         base_url='https://api.github.com/',
