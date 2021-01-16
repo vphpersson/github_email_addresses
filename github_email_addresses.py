@@ -10,7 +10,12 @@ from github_email_addresses import obtain_github_authors
 
 class GithubEmailAddressesArgumentParser(ArgumentParser):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            *args,
+            description='List the authors that appear in the commit history of a user\'s repositories.',
+            epilog='The information is obtained by making requests with the GitHub REST API. One must authenticate using a personal access token to avoid traffic limititations.',
+            **kwargs
+        )
 
         self.add_argument(
             'auth_username',
@@ -24,7 +29,7 @@ class GithubEmailAddressesArgumentParser(ArgumentParser):
 
         self.add_argument(
             'repo_user',
-            help='The username of the Github user whose repositories to scan.'
+            help='The username of the GitHub user whose repositories to scan.'
         )
 
         self.add_argument(
