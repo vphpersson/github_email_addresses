@@ -51,31 +51,50 @@ async def _collect_repository_information(
         except IndexError:
             break
 
-        extra_request_parameters: dict[str, Any] = {}
+        branch_names: set[str] = set()
+        for page_number in count(start=1):
+            branches_entries_response = await client.get(
+                url=f'/repos/{repository_entry["full_name"]}/branches',
+                params={'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number}
+            )
+            branches_entries_response.raise_for_status()
+
+            branch_entries = branches_entries_response.json()
+            branch_names.update(branch_entry['name'] for branch_entry in branch_entries)
+
+            if len(branch_entries) < MAX_NUM_RESULTS_PER_PAGE:
+                break
 
         # If the repository is forked, collect only the commits that were made after the forked repository was
         # was created.
+        extra_request_parameters: dict[str, Any] = {}
         if repository_entry['fork']:
             extra_request_parameters['since'] = repository_entry['created_at']
 
         commit_entries: list[dict[str, Any]] = []
-        for page_number in count(start=1):
-            commit_entries_response: Response = await client.get(
-                url=f'/repos/{repository_entry["full_name"]}/commits',
-                params={'per_page': MAX_NUM_RESULTS_PER_PAGE, 'page': page_number} | extra_request_parameters
-            )
 
-            # The repository has no commits.
-            if commit_entries_response.status_code == HTTPStatus.CONFLICT:
-                break
-            else:
-                commit_entries_response.raise_for_status()
+        for branch_name in branch_names:
+            for page_number in count(start=1):
+                commit_entries_response: Response = await client.get(
+                    url=f'/repos/{repository_entry["full_name"]}/commits',
+                    params={
+                        'per_page': MAX_NUM_RESULTS_PER_PAGE,
+                        'page': page_number,
+                        'sha': branch_name
+                    } | extra_request_parameters
+                )
 
-            response_commit_entries: list[dict[str, Any]] = commit_entries_response.json()
-            commit_entries.extend(response_commit_entries)
+                # The repository has no commits.
+                if commit_entries_response.status_code == HTTPStatus.CONFLICT:
+                    break
+                else:
+                    commit_entries_response.raise_for_status()
 
-            if not response_commit_entries or len(response_commit_entries) < MAX_NUM_RESULTS_PER_PAGE:
-                break
+                response_commit_entries: list[dict[str, Any]] = commit_entries_response.json()
+                commit_entries.extend(response_commit_entries)
+
+                if len(response_commit_entries) < MAX_NUM_RESULTS_PER_PAGE:
+                    break
 
         repository_information_list.append(
             RepositoryInfo(
@@ -117,7 +136,7 @@ async def obtain_github_authors(
         response_repositories_entries = repository_entries_response.json()
         repository_entries.extend(response_repositories_entries)
 
-        if not response_repositories_entries or len(response_repositories_entries) < MAX_NUM_RESULTS_PER_PAGE:
+        if len(response_repositories_entries) < MAX_NUM_RESULTS_PER_PAGE:
             break
 
     num_repository_entries = len(repository_entries)
