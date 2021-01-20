@@ -6,7 +6,7 @@ from http import HTTPStatus
 
 from httpx import AsyncClient as HttpxAsyncClient, Response
 
-# The maximum number of results per page for API calls; set by Github.
+# The maximum number of results per page for API calls. Set by GitHub.
 MAX_NUM_RESULTS_PER_PAGE = 100
 
 
@@ -102,10 +102,10 @@ async def _collect_repository_information(
                 owner=repository_entry['owner']['login'],
                 commit_authors=set(
                     CommitAuthor(
-                        name=commit['commit']['author']['name'],
-                        email_address=commit['commit']['author']['email']
+                        name=commit_entry['commit']['author']['name'],
+                        email_address=commit_entry['commit']['author']['email']
                     )
-                    for commit in commit_entries
+                    for commit_entry in commit_entries
                 )
             )
         )
