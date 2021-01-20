@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+from argparse import RawDescriptionHelpFormatter
 from asyncio import run as asyncio_run
 from typing import Type
 
@@ -24,8 +25,11 @@ class GithubEmailAddressesArgumentParser(TypedArgumentParser):
             description='List the authors that appear in the commit history of a user\'s repositories.',
             epilog=(
                 'The information is obtained by making requests with the GitHub REST API. '
-                'One must authenticate using a personal access token to avoid traffic limititations.'
+                'One must authenticate using a personal access token to avoid traffic limitations.\n'
+                'Scans all branches of a repository. '
+                'In case the repository is forked, only commits made after the fork date are examined.'
             ),
+            formatter_class=RawDescriptionHelpFormatter,
             **kwargs
         )
 
