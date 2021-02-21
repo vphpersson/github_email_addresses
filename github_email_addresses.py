@@ -49,7 +49,7 @@ class GithubEmailAddressesArgumentParser(TypedArgumentParser):
         )
 
         self.add_argument(
-            '--num-max-concurrent',
+            '-n', '--num-max-concurrent',
             help='The maximum number of concurrent HTTP requests.',
             type=int,
             default=5
