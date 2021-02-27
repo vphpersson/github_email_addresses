@@ -9,7 +9,7 @@ Scans all branches of a repository. In case the repository is forked, only commi
 ## Usage
 
 ```
-usage: github_email_addresses.py [-h] [--num-max-concurrent NUM_MAX_CONCURRENT] auth_username auth_access_token repo_user
+usage: github_email_addresses.py [-h] [-n NUM_MAX_CONCURRENT] [-a] auth_username auth_access_token repo_user
 
 List the authors that appear in the commit history of a user's repositories.
 
@@ -20,8 +20,9 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  --num-max-concurrent NUM_MAX_CONCURRENT
+  -n NUM_MAX_CONCURRENT, --num-max-concurrent NUM_MAX_CONCURRENT
                         The maximum number of concurrent HTTP requests.
+  -p, --per-repo        Show commit authors per repository.
 
 The information is obtained by making requests with the GitHub REST API. One must authenticate using a personal access token to avoid traffic limitations.
 Scans all branches of a repository. In case the repository is forked, only commits made after the fork date are examined.
