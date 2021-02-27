@@ -9,7 +9,7 @@ Scans all branches of a repository. In case the repository is forked, only commi
 ## Usage
 
 ```
-usage: github_email_addresses.py [-h] [-n NUM_MAX_CONCURRENT] [-a] auth_username auth_access_token repo_user
+usage: github_email_addresses.py [-h] [-n NUM_MAX_CONCURRENT] [-p] auth_username auth_access_token repo_user
 
 List the authors that appear in the commit history of a user's repositories.
 
