@@ -7,8 +7,9 @@ from typing import Type
 
 from httpx import AsyncClient
 from pyutils.argparse.typed_argument_parser import TypedArgumentParser
+from pyutils.my_string import underline
 
-from github_email_addresses import obtain_github_authors
+from github_email_addresses import obtain_github_authors, RepositoryInfo
 
 
 class GithubEmailAddressesArgumentParser(TypedArgumentParser):
@@ -18,6 +19,7 @@ class GithubEmailAddressesArgumentParser(TypedArgumentParser):
         auth_access_token: str
         repo_user: str
         num_max_concurrent: int
+        per_repo: bool
 
     def __init__(self, *args, **kwargs):
         super().__init__(
@@ -55,6 +57,12 @@ class GithubEmailAddressesArgumentParser(TypedArgumentParser):
             default=5
         )
 
+        self.add_argument(
+            '-p', '--per-repo',
+            help='Show commit authors per repository.',
+            action='store_true'
+        )
+
 
 async def main():
 
@@ -68,19 +76,31 @@ async def main():
         auth=(args.auth_username, args.auth_access_token)
     )
     async with AsyncClient(**client_options) as client:
-        print(
-            '\n'.join(
-                sorted(
-                    str(commit_author)
-                    for commit_author in await obtain_github_authors(
-                        client=client,
-                        username=args.repo_user,
-                        num_max_concurrent=args.num_max_concurrent
-                    )
-                )
-            )
+        repository_information_list: list[RepositoryInfo] = await obtain_github_authors(
+            client=client,
+            username=args.repo_user,
+            num_max_concurrent=args.num_max_concurrent
         )
 
+    if args.per_repo:
+        print(
+            '\n\n'.join(
+                underline(string=repository_information.name) + '\n' + '\n'.join(
+                    sorted([str(author) for author in repository_information.commit_authors])
+                )
+                for repository_information in repository_information_list
+            )
+        )
+    else:
+        print(
+            '\n'.join(
+                sorted({
+                    str(author)
+                    for repo_info in repository_information_list
+                    for author in repo_info.commit_authors
+                })
+            )
+        )
 
 if __name__ == '__main__':
     asyncio_run(main())

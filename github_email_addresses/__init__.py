@@ -115,7 +115,7 @@ async def obtain_github_authors(
     client: HttpxAsyncClient,
     username: str,
     num_max_concurrent: int = 5
-) -> set[CommitAuthor]:
+) -> list[RepositoryInfo]:
     """
     Obtain information about authors from the commit history of a Github user's repositories.
 
@@ -152,8 +152,5 @@ async def obtain_github_authors(
         ]
     )
 
-    return {
-        author
-        for repo_info in repository_information_list
-        for author in repo_info.commit_authors
-    }
+    return repository_information_list
+
