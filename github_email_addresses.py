@@ -12,7 +12,6 @@ from github_email_addresses import obtain_github_authors, RepositoryInfo
 
 
 async def main():
-
     args: Type[GithubEmailAddressesArgumentParser.Namespace] = GithubEmailAddressesArgumentParser().parse_args()
 
     client_options = dict(
